@@ -1,0 +1,31 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; color: #e8ece4; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
+#unity-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #000; }
+.hidden { display: none !important; }
+.panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(640px, 94vw); max-height: 94vh; overflow: auto;
+  background: rgba(10, 14, 10, .92); border: 1px solid #3a4a36; padding: 22px 26px; border-radius: 6px; }
+h1 { margin: 0 0 4px; letter-spacing: .12em; color: #b9e08a; font-size: 26px; }
+h2 { margin: 0 0 10px; color: #b9e08a; }
+h3 { margin: 16px 0 6px; font-size: 13px; letter-spacing: .1em; color: #9fb48a; }
+.tag, .desc, .stat, .keys { color: #a9b5a0; font-size: 13px; margin: 6px 0; line-height: 1.6; }
+.keys { font-size: 12px; opacity: .8; margin-top: 14px; }
+.stat { color: #e0c070; min-height: 1.4em; }
+label { display: block; margin: 10px 0 4px; font-size: 13px; color: #c8d4bc; }
+input { background: #141a12; border: 1px solid #3a4a36; color: #e8ece4; padding: 8px 10px; border-radius: 4px; font-size: 15px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+.btn { background: #1c261a; border: 1px solid #4a5c44; color: #e8ece4; padding: 9px 16px; border-radius: 4px; font-size: 15px; cursor: pointer; }
+.btn:hover { background: #26331f; }
+.btn.primary { background: #3d5a2a; border-color: #7fae52; font-weight: 700; }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn.on { background: #52743a; border-color: #b9e08a; }
+.btn:disabled { opacity: .4; cursor: default; }
+select { background: #141a12; border: 1px solid #3a4a36; color: #e8ece4; padding: 7px 8px; border-radius: 4px; font-size: 14px; }
+.lo { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 13px; }
+#players { margin: 8px 0; }
+.pl { display: flex; justify-content: space-between; padding: 6px 10px; margin: 3px 0; background: #151c13; border-left: 3px solid #4a5c44; font-size: 14px; }
+.pl.me { border-left-color: #b9e08a; }
+.pl .tag2 { opacity: .7; font-size: 12px; }
+#loading { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; z-index: 10; }
+.bar { width: min(360px, 70vw); height: 6px; background: #222; border-radius: 3px; overflow: hidden; }
+#fill { height: 100%; width: 0; background: #b9e08a; }
+#ltext { font-size: 13px; color: #a9b5a0; }
