@@ -20,6 +20,43 @@
   const MISSIONS = ['NIGHT HARBOR(夜・港・殲滅)', 'ARMS DEAL(昼・砂漠・戦車爆破)', 'SKY TOWER(早朝・ビル制圧・ボス)', 'IRON JUNGLE(夕・密林・殲滅)', 'BLACK REFINERY(夜・製油所爆破)'];
   const WEAPONS = ['M4A1 カービン', 'MP5SD', 'USP .45', 'M870 ショットガン', 'SR-25 DMR', 'VSS 消音スナイパー'];
 
+  // ---- ガンスミス: C# の Gunsmith.cs と同じ詰め方(一の位=光学 十=銃口 百=グリップ 千=弾倉 万=レーザー) ----
+  const KINDS = ['AR', 'SMG', 'PISTOL', 'SG', 'DMR', 'DMR'];
+  const ATT = {
+    o: ['標準アイアン', 'ドットサイト', 'ホロサイト', '4倍スコープ'],
+    m: ['なし', 'サプレッサー', 'コンペンセイター', 'ロングバレル'],
+    g: ['なし', 'バーティカルグリップ', 'アングルグリップ'],
+    a: ['標準マガジン', '拡張マガジン', '速射マガジン'],
+    l: ['なし', 'レーザーサイト']
+  };
+  const ATT_LABEL = { o: '光学', m: '銃口', g: 'グリップ', a: 'マガジン', l: 'レーザー' };
+  const DEC = at => ({ o: at % 10, m: Math.floor(at / 10) % 10, g: Math.floor(at / 100) % 10, a: Math.floor(at / 1000) % 10, l: Math.floor(at / 10000) % 10 });
+  const ENC = d => d.o + d.m * 10 + d.g * 100 + d.a * 1000 + d.l * 10000;
+  function fixAt(w, at) {
+    const d = DEC(at | 0), k = KINDS[w] || 'AR';
+    d.o = Math.min(3, d.o); d.m = Math.min(3, d.m); d.g = Math.min(2, d.g); d.a = Math.min(2, d.a); d.l = Math.min(1, d.l);
+    if (k === 'DMR') d.o = 0;
+    if (k === 'PISTOL') { d.g = 0; if (d.o === 3) d.o = 0; }
+    if (k === 'SG') d.g = 0;
+    return ENC(d);
+  }
+  function attOptions(w, key) {
+    const k = KINDS[w] || 'AR';
+    if (key === 'o' && k === 'DMR') return [0];
+    if (key === 'o' && k === 'PISTOL') return [0, 1, 2];
+    if (key === 'g' && (k === 'PISTOL' || k === 'SG')) return [0];
+    return ATT[key].map((_, i) => i);
+  }
+  function attNote(at) {
+    const d = DEC(at), n = [];
+    if (d.o === 1) n.push('照準: ドット'); if (d.o === 2) n.push('照準: ホロ(拡大少し)'); if (d.o === 3) n.push('4倍ズーム');
+    if (d.m === 1) n.push('発砲音を消す(威力 -10%)'); if (d.m === 2) n.push('反動 -22%'); if (d.m === 3) n.push('射程 +30% 威力 +6%');
+    if (d.g === 1) n.push('反動 -18%'); if (d.g === 2) n.push('ブレ -12%');
+    if (d.a === 1) n.push('弾数 +50% / リロード遅い'); if (d.a === 2) n.push('リロード -28%');
+    if (d.l === 1) n.push('腰だめのブレ -30%');
+    return n.length ? n.join(' / ') : 'ノーマル';
+  }
+
   window.addEventListener('unhandledrejection', e => {
     const r = e.reason, msg = String((r && (r.message || r.name)) || r);
     if (/pointer ?lock/i.test(msg) || (r && /^(NotAllowedError|WrongDocumentError|SecurityError)$/.test(r.name) && /lock/i.test(msg))) {
@@ -38,10 +75,12 @@
   function loadLoadout() {
     let lo = null;
     try { lo = JSON.parse(store.get('bodycam-lo') || 'null'); } catch (e) { }
-    if (!lo || typeof lo !== 'object') lo = { p: 0, s: 2, sp: 1 };
+    if (!lo || typeof lo !== 'object') lo = { p: 0, s: 2, sp: 1, at: 10, at2: 0 };
+    lo.at = lo.at | 0; lo.at2 = lo.at2 | 0;
     if (Q.has('p')) lo.p = +Q.get('p') | 0; // テスト用
     if (Q.has('s')) lo.s = +Q.get('s') | 0;
     lo.p = Math.min(5, Math.max(0, lo.p | 0)); lo.s = Math.min(5, Math.max(0, lo.s | 0)); lo.sp = lo.sp ? 1 : 0;
+    lo.at = fixAt(lo.p, lo.at); lo.at2 = fixAt(lo.s, lo.at2); lo.sp = DEC(lo.at).m === 1 ? 1 : 0;
     return lo;
   }
 
@@ -50,7 +89,7 @@
     name: (Q.get('name') || store.get('bodycam-name') || ('Operator' + Math.floor(Math.random() * 900 + 100))).slice(0, 12),
     mode: 0, ms: 1, view: 'loading', inGame: false, lastGo: 0, go: null, roster: [],
     game: null, evq: [], lo: loadLoadout(),
-    autostart: Q.get('autostart'), minp: +(Q.get('minp') || 2), autoStarted: false
+    hard: store.get('bodycam-hard') === '1' || Q.has('hard'), autostart: Q.get('autostart'), minp: +(Q.get('minp') || 2), autoStarted: false
   };
   if (Q.has('ms')) S.ms = +Q.get('ms') | 0;
 
@@ -268,9 +307,9 @@
     const sorted = ms.slice();
     const roster = sorted.map((p, i) => {
       const lo = p.isMe ? S.lo : (p.presence.lo || {});
-      return { id: p.peer, n: p.isMe ? S.name : String(p.presence.n || '?').slice(0, 12), p: lo.p | 0, s: lo.s | 0, sp: lo.sp ? 1 : 0, tm: i % 2 };   // tm: 入った順に赤(0)/青(1)
+      return { id: p.peer, n: p.isMe ? S.name : String(p.presence.n || '?').slice(0, 12), p: lo.p | 0, s: lo.s | 0, sp: lo.sp ? 1 : 0, at: lo.at | 0, at2: lo.at2 | 0, tm: i % 2 };   // tm: 入った順に赤(0)/青(1)
     });
-    S.go = { t: Date.now(), mode: S.mode, ms: S.ms, roster: roster, seed: Math.floor(Math.random() * 1e6) + 1 };
+    S.go = { t: Date.now(), mode: S.mode, ms: S.ms, roster: roster, seed: Math.floor(Math.random() * 1e6) + 1, hd: S.hard ? 1 : 0 };
     startGame(S.go);
   }
 
@@ -317,7 +356,7 @@
 
   function startSolo(ms) {
     S.inGame = true; S.roster = []; show('game');
-    sendUnity('Game', 'OnSolo', JSON.stringify({ ms: ms, p: S.lo.p, s: S.lo.s, sp: S.lo.sp }));
+    sendUnity('Game', 'OnSolo', JSON.stringify({ ms: ms, p: S.lo.p, s: S.lo.s, sp: S.lo.sp, at: S.lo.at | 0, at2: S.lo.at2 | 0, hd: S.hard ? 1 : 0 }));
   }
 
   // ================= 画面 =================
@@ -328,17 +367,40 @@
   }
   function status(t) { const a = $('#menuStat'), b = $('#lobbyStat'); if (a) a.textContent = t; if (b && S.view === 'lobby') b.textContent = t; }
 
+  function smithHtml(slot) {
+    const key = slot === 0 ? 'at' : 'at2', w = slot === 0 ? S.lo.p : S.lo.s, d = DEC(S.lo[key]);
+    let h = '<div class="smith"><b>' + (slot === 0 ? '主武器' : '副武器') + ' ' + esc(WEAPONS[w]) + ' のカスタム</b><div class="lo">';
+    for (const k of ['o', 'm', 'g', 'a', 'l']) {
+      const opts = attOptions(w, k);
+      h += '<label>' + ATT_LABEL[k] + ' <select data-at="' + key + ':' + k + '"' + (opts.length < 2 ? ' disabled' : '') + '>' +
+        opts.map(i => '<option value="' + i + '"' + (i === d[k] ? ' selected' : '') + '>' + esc(ATT[k][i]) + '</option>').join('') + '</select></label>';
+    }
+    return h + '</div><div class="note">' + esc(attNote(S.lo[key])) + '</div></div>';
+  }
+
   function loadoutHtml(id) {
     const opt = (list, sel) => list.map((n, i) => '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
     return '<div class="lo"><label>主武器 <select data-k="p">' + opt(WEAPONS, S.lo.p) + '</select></label>' +
       '<label>副武器 <select data-k="s">' + opt(WEAPONS, S.lo.s) + '</select></label>' +
-      '<label><input type="checkbox" data-k="sp"' + (S.lo.sp ? ' checked' : '') + '> サプレッサー</label></div>';
+      '<label><input type="checkbox" data-k="hard"' + (S.hard ? ' checked' : '') + '> ハードモード(敵4倍・被弾2発で死亡)</label></div>' +
+      '<details class="gs" open><summary>ガンスミス(銃のカスタム)</summary>' + smithHtml(0) + smithHtml(1) + '</details>';
   }
   function bindLoadout(root) {
+    const redraw = () => { const sc = root.id; root.innerHTML = loadoutHtml(); bindLoadout(root); };
     root.querySelectorAll('[data-k]').forEach(el => el.addEventListener('change', () => {
       const k = el.dataset.k;
+      if (k === 'hard') { S.hard = el.checked; store.set('bodycam-hard', S.hard ? '1' : '0'); return; }
       S.lo[k] = k === 'sp' ? (el.checked ? 1 : 0) : (+el.value | 0);
+      S.lo.at = fixAt(S.lo.p, S.lo.at); S.lo.at2 = fixAt(S.lo.s, S.lo.at2); S.lo.sp = DEC(S.lo.at).m === 1 ? 1 : 0;
       store.set('bodycam-lo', JSON.stringify(S.lo));
+      redraw();
+    }));
+    root.querySelectorAll('[data-at]').forEach(el => el.addEventListener('change', () => {
+      const [key, k] = el.dataset.at.split(':'), d = DEC(S.lo[key]);
+      d[k] = +el.value | 0; S.lo[key] = fixAt(key === 'at' ? S.lo.p : S.lo.s, ENC(d));
+      S.lo.sp = DEC(S.lo.at).m === 1 ? 1 : 0;
+      store.set('bodycam-lo', JSON.stringify(S.lo));
+      redraw();
     }));
   }
 
