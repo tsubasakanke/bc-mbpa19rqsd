@@ -17,7 +17,7 @@
     { key: 'tdm', n: 'チーム戦', d: '赤チーム vs 青チーム。先に20キルしたチームの勝ち(10分で時間切れ)。倒されても4秒で復活。味方は撃てない。' },
     { key: 'ffa', n: '個人戦', d: '全員が敵。先に15キルした人の勝ち(10分で時間切れ)。倒されても4秒で復活。' }
   ];
-  const MISSIONS = ['NIGHT HARBOR(夜・港)', 'DUST STORM(昼・砂漠)', 'IRON JUNGLE(夕・密林)'];
+  const MISSIONS = ['NIGHT HARBOR(夜・港・殲滅)', 'ARMS DEAL(昼・砂漠・戦車爆破)', 'SKY TOWER(早朝・ビル制圧・ボス)', 'IRON JUNGLE(夕・密林・殲滅)', 'BLACK REFINERY(夜・製油所爆破)'];
   const WEAPONS = ['M4A1 カービン', 'MP5SD', 'USP .45', 'M870 ショットガン', 'SR-25 DMR', 'VSS 消音スナイパー'];
 
   window.addEventListener('unhandledrejection', e => {
