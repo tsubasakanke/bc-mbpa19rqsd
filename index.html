@@ -24,7 +24,7 @@
       <button id="join" class="btn">参加する</button>
     </div>
     <p id="menuStat" class="stat"></p>
-    <p class="keys">WASD 移動 / Shift ダッシュ / C しゃがみ / 右クリック/T 構え / R リロード / Tab スコア / F1 ボディカム加工 切替</p>
+    <p class="keys">WASD 移動 / Shift ダッシュ / C しゃがみ / 右クリック/T 構え / R リロード / N ナイトビジョン / Tab スコア / F1 ボディカム加工 切替</p>
   </div>
 
   <!-- ロビー -->
@@ -55,6 +55,7 @@
     var buildUrl = "Build";
     var config = {
       arguments: [],
+      devicePixelRatio: 1,   // 高解像度ディスプレイでも画面ピクセル数を増やさない(重さ対策)
       dataUrl: buildUrl + "/web.data",
       frameworkUrl: buildUrl + "/web.framework.js",
       codeUrl: buildUrl + "/web.wasm",
