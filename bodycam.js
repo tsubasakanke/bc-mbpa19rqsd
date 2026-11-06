@@ -379,7 +379,7 @@
   function show(v) {
     S.view = v;
     for (const id of ['menu', 'lobby']) $('#' + id).classList.toggle('hidden', v !== id);
-    if (v === 'menu') renderMenu(); else { sr({ v: 'off' }); if (v === 'lobby') renderLobby(true); }
+    if (v === 'menu') renderMenu(); else if (v === 'lobby') { S.ltab = 'room'; renderLobby(true); } else sr({ v: 'off' });
   }
   function status(t) { const a = $('#menuStat'), b = $('#lobbyStat'); if (a) a.textContent = t; if (b && S.view === 'lobby') b.textContent = t; }
 
@@ -436,8 +436,8 @@
   const segHtml = (opts, sel, attr) => '<div class="seg">' + opts.map(([i, n]) => '<button class="sg' + (i === sel ? ' on' : '') + '" ' + attr + ' data-v="' + i + '">' + esc(n) + '</button>').join('') + '</div>';
 
   const TABS = [['home', 'HOME'], ['solo', 'SOLO OPS'], ['online', 'ONLINE'], ['armory', 'ARMORY'], ['operator', 'OPERATOR']];
-  function tabHtml() {
-    const t = S.tab;
+  function tabHtml(t) {
+    t = t || S.tab;
     if (t === 'solo') {
       return '<div class="sec">MISSION SELECT</div><div class="cards mgrid">' + MISSIONS.map((m, i) => {
         const [a, b] = m.split('('); return '<button class="card" data-ms="' + i + '"><span class="tagc">0' + (i + 1) + '</span><b>' + esc(a) + '</b><small>' + esc((b || '').replace(')', '')) + '</small></button>';
@@ -475,47 +475,65 @@
       '<button class="card" data-go="operator"><span class="tagc">OPERATOR</span><b>見た目を選ぶ</b><small>迷彩・ヘルメット・マスク・ベスト…</small></button></div>';
   }
 
+  function bindTab(T, rerender, go) {
+    T.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+    T.querySelectorAll('[data-ms]').forEach(b => b.addEventListener('click', () => startSolo(+b.dataset.ms)));
+    T.querySelectorAll('[data-hard]').forEach(b => b.addEventListener('click', () => { S.hard = !S.hard; store.set('bodycam-hard', S.hard ? '1' : '0'); rerender(); }));
+    T.querySelectorAll('[data-slot]').forEach(b => b.addEventListener('click', () => { S.slot = +b.dataset.slot; rerender(); }));
+    T.querySelectorAll('[data-w]').forEach(b => b.addEventListener('click', () => {
+      const k = S.slot ? 's' : 'p'; S.lo[k] = +b.dataset.v;
+      S.lo.at = fixAt(S.lo.p, S.lo.at); S.lo.at2 = fixAt(S.lo.s, S.lo.at2); saveLo(); rerender();
+    }));
+    T.querySelectorAll('[data-att]').forEach(b => b.addEventListener('click', () => {
+      const key = S.slot ? 'at2' : 'at', d = DEC(S.lo[key]); d[b.dataset.att] = +b.dataset.v;
+      S.lo[key] = fixAt(S.slot ? S.lo.s : S.lo.p, ENC(d)); saveLo(); rerender();
+    }));
+    T.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click', () => {
+      const d = lookDec(S.lo.lk); d[+b.dataset.look] = +b.dataset.v; S.lo.lk = lookEnc(d); saveLo(); rerender();
+    }));
+    const rl = T.querySelector('#rndLook'); if (rl) rl.addEventListener('click', () => { S.lo.lk = lookEnc(LOOK.map(g => Math.floor(Math.random() * g.o.length))); saveLo(); rerender(); });
+    const cr = T.querySelector('#create'); if (cr) cr.addEventListener('click', () => joinRoom(Math.random().toString(36).slice(2, 7).toUpperCase()));
+    const jn = T.querySelector('#join'); if (jn) jn.addEventListener('click', () => joinRoom(T.querySelector('#joinCode').value));
+    const jc = T.querySelector('#joinCode'); if (jc) jc.addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(jc.value); });
+  }
+
   function renderMenu() {
     $('#name').value = S.name; $('#menu').dataset.tab = S.tab;
     $('#nav').innerHTML = TABS.map(([k, n]) => '<button class="nv' + (S.tab === k ? ' on' : '') + '" data-tab="' + k + '">' + n + '</button>').join('');
     $('#tab').innerHTML = tabHtml();
     const go = k => { S.tab = k; renderMenu(); };
     $('#nav').querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => go(b.dataset.tab)));
-    const T = $('#tab');
-    T.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
-    T.querySelectorAll('[data-ms]').forEach(b => b.addEventListener('click', () => startSolo(+b.dataset.ms)));
-    T.querySelectorAll('[data-hard]').forEach(b => b.addEventListener('click', () => { S.hard = !S.hard; store.set('bodycam-hard', S.hard ? '1' : '0'); renderMenu(); }));
-    T.querySelectorAll('[data-slot]').forEach(b => b.addEventListener('click', () => { S.slot = +b.dataset.slot; renderMenu(); }));
-    T.querySelectorAll('[data-w]').forEach(b => b.addEventListener('click', () => {
-      const k = S.slot ? 's' : 'p'; S.lo[k] = +b.dataset.v;
-      S.lo.at = fixAt(S.lo.p, S.lo.at); S.lo.at2 = fixAt(S.lo.s, S.lo.at2); saveLo(); renderMenu();
-    }));
-    T.querySelectorAll('[data-att]').forEach(b => b.addEventListener('click', () => {
-      const key = S.slot ? 'at2' : 'at', d = DEC(S.lo[key]); d[b.dataset.att] = +b.dataset.v;
-      S.lo[key] = fixAt(S.slot ? S.lo.s : S.lo.p, ENC(d)); saveLo(); renderMenu();
-    }));
-    T.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click', () => {
-      const d = lookDec(S.lo.lk); d[+b.dataset.look] = +b.dataset.v; S.lo.lk = lookEnc(d); saveLo(); renderMenu();
-    }));
-    const rl = $('#rndLook'); if (rl) rl.addEventListener('click', () => { S.lo.lk = lookEnc(LOOK.map(g => Math.floor(Math.random() * g.o.length))); saveLo(); renderMenu(); });
-    const cr = $('#create'); if (cr) cr.addEventListener('click', () => joinRoom(Math.random().toString(36).slice(2, 7).toUpperCase()));
-    const jn = $('#join'); if (jn) jn.addEventListener('click', () => joinRoom($('#joinCode').value));
-    const jc = $('#joinCode'); if (jc) jc.addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(jc.value); });
+    bindTab($('#tab'), renderMenu, go);
     srUpdate();
   }
 
   let lobbyKey = '';
+  S.ltab = 'room';
+  function lobbySr() {
+    if (S.view !== 'lobby') return;
+    if (S.ltab === 'armory') { const w = S.slot ? S.lo.s : S.lo.p; sr({ v: 'gun', w: w, at: S.slot ? S.lo.at2 : S.lo.at }); }
+    else if (S.ltab === 'operator') sr({ v: 'body', lk: S.lo.lk });
+    else sr({ v: 'lobby', ps: members().map(p => { const lo = p.isMe ? S.lo : (p.presence.lo || {}); return { lk: lo.lk | 0, w: lo.p | 0, at: lo.at | 0, tm: 0 }; }) });
+  }
   function renderLobby(force) {
     if (S.view !== 'lobby' || !S.room) return;
     const peers = members(), leader = lobbyLeaderId(), me = isLobbyLeader();
-    const key = JSON.stringify([peers.map(p => [p.peer, p.presence.n, p.presence.lo]), S.mode, S.ms, me, S.name]);
+    const key = JSON.stringify([peers.map(p => [p.peer, p.presence.n, p.presence.lo]), S.mode, S.ms, me, S.name, S.ltab, S.ff]);
     $('#lcode').textContent = S.code;
     if (!force && key === lobbyKey) return;
     lobbyKey = key;
+    const goL = k => { S.ltab = k; lobbyKey = ''; renderLobby(true); };
+    $('#lnav').innerHTML = [['room', 'ROOM'], ['armory', 'ARMORY'], ['operator', 'OPERATOR']].map(([k, n]) => '<button class="nv' + (S.ltab === k ? ' on' : '') + '" data-lt="' + k + '">' + n + '</button>').join('');
+    $('#lnav').querySelectorAll('[data-lt]').forEach(b => b.addEventListener('click', () => goL(b.dataset.lt)));
+    $('#roomBody').classList.toggle('hidden', S.ltab !== 'room'); $('#ltab').classList.toggle('hidden', S.ltab === 'room');
+    if (S.ltab !== 'room') {
+      $('#ltab').innerHTML = tabHtml(S.ltab);
+      bindTab($('#ltab'), () => { lobbyKey = ''; renderLobby(true); }, goL);
+      lobbySr(); return;
+    }
     $('#invite').value = location.origin + location.pathname + '?room=' + S.code;
     $('#players').innerHTML = peers.map((p, i) => '<div class="pl' + (p.isMe ? ' me' : '') + '"><span>' + esc(p.isMe ? S.name : p.presence.n) + (p.peer === leader ? ' ★' : '') +
       '</span><span class="tag2">' + esc(WEAPONS[(p.isMe ? S.lo.p : (p.presence.lo || {}).p) | 0] || '') + ' / チーム' + (i % 2 === 0 ? '赤' : '青') + '</span></div>').join('');
-    $('#loadoutLobby').innerHTML = loadoutHtml(); bindLoadout($('#loadoutLobby'));
     $('#modes').innerHTML = MODES.map((m, i) => '<button class="btn' + (i === S.mode ? ' on' : '') + '" data-mode="' + i + '"' + (me ? '' : ' disabled') + '>' + esc(m.n) + '</button>').join('');
     $('#modeDesc').textContent = MODES[S.mode].d;
     $('#ffRow').innerHTML = '<label class="toggle' + (S.ff ? ' on' : '') + '" id="ffBtn" style="' + (me ? '' : 'pointer-events:none;opacity:.7') + '"><i></i><span><b>フレンドリーファイア</b>　味方の弾・手榴弾でもダメージ(チーム戦では味方撃ち -1キル)</span></label>';
@@ -526,8 +544,9 @@
     const start = $('#start');
     const prob = startProblem(peers.length);
     start.disabled = !me || !!prob;
-    start.textContent = me ? 'スタート' : 'リーダー(★)がスタートするのを待っています';
+    start.textContent = me ? 'START' : 'リーダー(★)がスタートするのを待っています';
     $('#lobbyStat').textContent = me ? prob : '';
+    lobbySr();
   }
 
   function startProblem(n) {

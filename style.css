@@ -92,3 +92,10 @@ body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-in
 .panel h2, .panel h3 { font-style: italic; }
 @media (max-width: 720px) { .hud { width: 100vw; background: rgba(4,7,5,.93); } .brand .logo { font-size: 34px; } .mgrid { grid-template-columns: 1fr; } .hint3d { display: none; } }
 #menu[data-tab=armory] .keys, #menu[data-tab=operator] .keys { display: none; }
+
+#lobby.hud { width: min(560px, 100vw); }
+#lobby .brand .logo { font-size: 34px; } #lobby .brand .logo b { display: inline; font-size: 34px; letter-spacing: .3em; margin-left: 10px; }
+#players .pl { background: rgba(198,255,61,.06); border-left: 3px solid var(--line); clip-path: polygon(0 0, 100% 0, 100% 70%, 97% 100%, 0 100%); }
+#players .pl.me { border-left-color: var(--ac); }
+#lobby .btn { clip-path: polygon(0 0, 100% 0, 100% 72%, 94% 100%, 0 100%); }
+#lobby input { background: rgba(198,255,61,.06); border: 1px solid var(--line); color: #fff; }

@@ -23,25 +23,33 @@
     <footer class="keys">WASD 移動 · Shift ダッシュ · C しゃがみ · 右クリック 構え · R リロード · N ナイトビジョン · G 扉/爆弾/ラペリング · H 起爆 · Tab スコア · F1 ボディカム切替</footer>
   </div>
 
-  <!-- ロビー -->
-  <div id="lobby" class="panel hidden">
-    <h2>部屋 <span id="lcode"></span></h2>
-    <div class="row">
-      <input id="invite" readonly>
-      <button id="copy" class="btn small">招待URLをコピー</button>
+  <!-- ロビー(HUD風。右側の3Dに全員が武器を持って並ぶ) -->
+  <div id="lobby" class="hud hidden">
+    <div class="frame"><i></i><i></i><i></i><i></i></div>
+    <header class="brand">
+      <div class="logo">ROOM <b id="lcode"></b></div>
+      <div class="sub">SQUAD LOBBY // 全員の装備が右に並びます</div>
+    </header>
+    <nav id="lnav"></nav>
+    <section id="ltab" class="hidden"></section>
+    <div id="roomBody">
+      <div class="sec">INVITE</div>
+      <div class="row">
+        <input id="invite" readonly>
+        <button id="copy" class="btn small">URLコピー</button>
+      </div>
+      <div class="sec">SQUAD</div>
+      <div id="players"></div>
+      <div class="sec">MODE</div>
+      <div id="modes" class="row"></div>
+      <p id="modeDesc" class="desc"></p>
+      <div id="ffRow" class="row"></div>
+      <div class="sec">MISSION</div>
+      <div id="missions" class="row"></div>
+      <button id="start" class="btn primary" style="margin-top:14px;width:100%;padding:14px;font-size:18px;letter-spacing:.2em">START</button>
+      <p id="lobbyStat" class="stat"></p>
+      <button id="leave" class="btn small">部屋を出る</button>
     </div>
-    <div id="players"></div>
-    <h3>装備(ミッションで使える武器だけ選ばれる)</h3>
-    <div id="loadoutLobby"></div>
-    <h3>モード</h3>
-    <div id="modes" class="row"></div>
-    <p id="modeDesc" class="desc"></p>
-    <div id="ffRow" class="row"></div>
-    <h3>舞台</h3>
-    <div id="missions" class="row"></div>
-    <button id="start" class="btn primary">スタート</button>
-    <p id="lobbyStat" class="stat"></p>
-    <button id="leave" class="btn small">部屋を出る</button>
   </div>
 
   <div id="loading"><div class="bar"><div id="fill"></div></div><div id="ltext">読み込み中…</div></div>
