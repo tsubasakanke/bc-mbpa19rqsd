@@ -72,11 +72,27 @@
   };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  // ---- 見た目: 9桁(迷彩 肌 ヘルメット マスク ゴーグル ベスト バックパック ひげ 髪)に 1e9 を足した整数。C# の HumanoidSpec.FromLook と同じ ----
+  const LOOK = [
+    { k: 'camo', n: '迷彩', o: ['フォレスト', 'デザート', 'オリーブ', 'アーバン', 'ブラック', 'マルチ'] },
+    { k: 'skin', n: '肌', o: ['色白', '標準', '褐色'] },
+    { k: 'helmet', n: 'ヘルメット', o: ['なし', 'タイプA', 'タイプB', 'タイプC', 'タイプD'] },
+    { k: 'mask', n: 'マスク', o: ['なし', 'バラクラバ', 'ネックゲイター'] },
+    { k: 'goggles', n: 'ゴーグル', o: ['なし', 'あり'] },
+    { k: 'vest', n: 'ベスト', o: ['なし', 'プレート', 'チェストリグ'] },
+    { k: 'pack', n: 'バックパック', o: ['なし', 'あり'] },
+    { k: 'beard', n: 'ひげ', o: ['なし', 'あり'] },
+    { k: 'hair', n: '髪', o: ['なし', 'あり'] }
+  ];
+  const lookDec = lk => { let v = lk - 1e9; const d = []; for (let i = 8; i >= 0; i--) { d[i] = v % 10; v = Math.floor(v / 10); } return d; };
+  const lookEnc = d => 1e9 + d.reduce((a, x) => a * 10 + x, 0);
+  function defaultLook() { return lookEnc([4, 1, 1, 0, 0, 1, 0, 0, 0]); }
+
   function loadLoadout() {
     let lo = null;
     try { lo = JSON.parse(store.get('bodycam-lo') || 'null'); } catch (e) { }
     if (!lo || typeof lo !== 'object') lo = { p: 0, s: 2, sp: 1, at: 10, at2: 0 };
-    lo.at = lo.at | 0; lo.at2 = lo.at2 | 0;
+    lo.at = lo.at | 0; lo.at2 = lo.at2 | 0; lo.lk = (lo.lk | 0) >= 1e9 ? lo.lk | 0 : defaultLook();
     if (Q.has('p')) lo.p = +Q.get('p') | 0; // テスト用
     if (Q.has('s')) lo.s = +Q.get('s') | 0;
     lo.p = Math.min(5, Math.max(0, lo.p | 0)); lo.s = Math.min(5, Math.max(0, lo.s | 0)); lo.sp = lo.sp ? 1 : 0;
@@ -89,7 +105,7 @@
     name: (Q.get('name') || store.get('bodycam-name') || ('Operator' + Math.floor(Math.random() * 900 + 100))).slice(0, 12),
     mode: 0, ms: 1, view: 'loading', inGame: false, lastGo: 0, go: null, roster: [],
     game: null, evq: [], lo: loadLoadout(),
-    hard: store.get('bodycam-hard') === '1' || Q.has('hard'), autostart: Q.get('autostart'), minp: +(Q.get('minp') || 2), autoStarted: false
+    hard: store.get('bodycam-hard') === '1' || Q.has('hard'), ff: store.get('bodycam-ff') === '1', tab: Q.get('tab') || 'home', slot: 0, autostart: Q.get('autostart'), minp: +(Q.get('minp') || 2), autoStarted: false
   };
   if (Q.has('ms')) S.ms = +Q.get('ms') | 0;
 
@@ -307,9 +323,9 @@
     const sorted = ms.slice();
     const roster = sorted.map((p, i) => {
       const lo = p.isMe ? S.lo : (p.presence.lo || {});
-      return { id: p.peer, n: p.isMe ? S.name : String(p.presence.n || '?').slice(0, 12), p: lo.p | 0, s: lo.s | 0, sp: lo.sp ? 1 : 0, at: lo.at | 0, at2: lo.at2 | 0, tm: i % 2 };   // tm: 入った順に赤(0)/青(1)
+      return { id: p.peer, n: p.isMe ? S.name : String(p.presence.n || '?').slice(0, 12), p: lo.p | 0, s: lo.s | 0, sp: lo.sp ? 1 : 0, at: lo.at | 0, at2: lo.at2 | 0, tm: i % 2, lk: lo.lk | 0 };   // tm: 入った順に赤(0)/青(1)
     });
-    S.go = { t: Date.now(), mode: S.mode, ms: S.ms, roster: roster, seed: Math.floor(Math.random() * 1e6) + 1, hd: S.hard ? 1 : 0 };
+    S.go = { t: Date.now(), mode: S.mode, ms: S.ms, roster: roster, seed: Math.floor(Math.random() * 1e6) + 1, hd: S.hard ? 1 : 0, ff: S.ff ? 1 : 0 };
     startGame(S.go);
   }
 
@@ -356,14 +372,14 @@
 
   function startSolo(ms) {
     S.inGame = true; S.roster = []; show('game');
-    sendUnity('Game', 'OnSolo', JSON.stringify({ ms: ms, p: S.lo.p, s: S.lo.s, sp: S.lo.sp, at: S.lo.at | 0, at2: S.lo.at2 | 0, hd: S.hard ? 1 : 0 }));
+    sendUnity('Game', 'OnSolo', JSON.stringify({ ms: ms, p: S.lo.p, s: S.lo.s, sp: S.lo.sp, at: S.lo.at | 0, at2: S.lo.at2 | 0, hd: S.hard ? 1 : 0, lk: S.lo.lk | 0 }));
   }
 
   // ================= 画面 =================
   function show(v) {
     S.view = v;
     for (const id of ['menu', 'lobby']) $('#' + id).classList.toggle('hidden', v !== id);
-    if (v === 'menu') renderMenu(); else if (v === 'lobby') renderLobby(true);
+    if (v === 'menu') renderMenu(); else { sr({ v: 'off' }); if (v === 'lobby') renderLobby(true); }
   }
   function status(t) { const a = $('#menuStat'), b = $('#lobbyStat'); if (a) a.textContent = t; if (b && S.view === 'lobby') b.textContent = t; }
 
@@ -404,12 +420,88 @@
     }));
   }
 
+  // ---- ショールーム(Unity 側の3D表示)へ今の内容を送る ----
+  function sr(o) {
+    if (!S.unity) return;
+    if (o.v !== 'off') { const W = innerWidth, pw = Math.min(520, W); o.sx = W < 760 ? 0 : -((pw + (W - pw) / 2) / W - 0.5); }
+    sendUnity('Showroom', 'Show', JSON.stringify(o));
+  }
+  function srUpdate() {
+    if (S.view !== 'menu') return;
+    if (S.tab === 'armory') { const w = S.slot ? S.lo.s : S.lo.p; sr({ v: 'gun', w: w, at: S.slot ? S.lo.at2 : S.lo.at }); }
+    else if (S.tab === 'operator') sr({ v: 'body', lk: S.lo.lk });
+    else sr({ v: 'off' });
+  }
+  const saveLo = () => { S.lo.sp = DEC(S.lo.at).m === 1 ? 1 : 0; store.set('bodycam-lo', JSON.stringify(S.lo)); };
+  const segHtml = (opts, sel, attr) => '<div class="seg">' + opts.map(([i, n]) => '<button class="sg' + (i === sel ? ' on' : '') + '" ' + attr + ' data-v="' + i + '">' + esc(n) + '</button>').join('') + '</div>';
+
+  const TABS = [['home', 'HOME'], ['solo', 'SOLO OPS'], ['online', 'ONLINE'], ['armory', 'ARMORY'], ['operator', 'OPERATOR']];
+  function tabHtml() {
+    const t = S.tab;
+    if (t === 'solo') {
+      return '<div class="sec">MISSION SELECT</div><div class="cards mgrid">' + MISSIONS.map((m, i) => {
+        const [a, b] = m.split('('); return '<button class="card" data-ms="' + i + '"><span class="tagc">0' + (i + 1) + '</span><b>' + esc(a) + '</b><small>' + esc((b || '').replace(')', '')) + '</small></button>';
+      }).join('') + '</div>' +
+        '<div class="toggle' + (S.hard ? ' on' : '') + '" data-hard><i></i><span><b>HARD MODE</b>　敵が4倍・被弾1〜2発で死亡</span></div>';
+    }
+    if (t === 'online') {
+      return '<div class="sec">MULTIPLAYER</div><div class="cards"><button class="card big" id="create"><b>部屋を作る</b><small>協力 / チーム戦 / 個人戦 · 最大8人 · 招待URLで友達を呼ぶ</small></button></div>' +
+        '<div class="sec">JOIN</div><div class="row"><input id="joinCode" placeholder="CODE" maxlength="8"><button id="join" class="btn primary">参加する</button></div>';
+    }
+    if (t === 'armory') {
+      const w = S.slot ? S.lo.s : S.lo.p, key = S.slot ? 'at2' : 'at', d = DEC(S.lo[key]);
+      let h = '<div class="sec">LOADOUT</div><div class="slotbar">' +
+        '<button class="slot' + (!S.slot ? ' on' : '') + '" data-slot="0"><small>PRIMARY</small><b>' + esc(WEAPONS[S.lo.p]) + '</b></button>' +
+        '<button class="slot' + (S.slot ? ' on' : '') + '" data-slot="1"><small>SECONDARY</small><b>' + esc(WEAPONS[S.lo.s]) + '</b></button></div>' +
+        '<div class="sec">WEAPON</div>' + segHtml(WEAPONS.map((n, i) => [i, n]), w, 'data-w="1"') +
+        '<div class="sec">GUNSMITH</div>';
+      for (const k of ['o', 'm', 'g', 'a', 'l']) {
+        const opts = attOptions(w, k);
+        h += '<div class="arow"><span>' + ATT_LABEL[k] + '</span>' + segHtml(opts.map(i => [i, ATT[k][i]]), d[k], 'data-att="' + k + '"') + '</div>';
+      }
+      return h + '<div class="note2">' + esc(attNote(S.lo[key])) + '</div><div class="hint3d">DRAG TO ROTATE</div>';
+    }
+    if (t === 'operator') {
+      const d = lookDec(S.lo.lk);
+      let h = '<div class="sec">OPERATOR APPEARANCE</div>';
+      LOOK.forEach((g, gi) => { h += '<div class="arow"><span>' + g.n + '</span>' + segHtml(g.o.map((n, i) => [i, n]), d[gi], 'data-look="' + gi + '"') + '</div>'; });
+      return h + '<div class="row"><button class="btn small" id="rndLook">ランダム</button></div><div class="note2">チーム戦では迷彩がチームカラーに固定されます。自分の腕の袖にも迷彩が反映されます。</div><div class="hint3d">DRAG TO ROTATE</div>';
+    }
+    // home
+    return '<div class="sec">DEPLOY</div><div class="cards">' +
+      '<button class="card big" data-go="solo"><span class="tagc">SOLO</span><b>ソロ任務</b><small>5つの作戦を一人で。ハードモードもあり</small></button>' +
+      '<button class="card big" data-go="online"><span class="tagc">ONLINE</span><b>オンライン</b><small>協力・チーム戦・個人戦。フレンドリーファイアの切替も</small></button>' +
+      '<button class="card" data-go="armory"><span class="tagc">ARMORY</span><b>ガンスミス</b><small>' + esc(WEAPONS[S.lo.p]) + ' / ' + esc(WEAPONS[S.lo.s]) + ' · 銃を見ながらカスタム</small></button>' +
+      '<button class="card" data-go="operator"><span class="tagc">OPERATOR</span><b>見た目を選ぶ</b><small>迷彩・ヘルメット・マスク・ベスト…</small></button></div>';
+  }
+
   function renderMenu() {
-    $('#name').value = S.name;
-    $('#loadoutMenu').innerHTML = '<h3>装備</h3>' + loadoutHtml();
-    bindLoadout($('#loadoutMenu'));
-    $('#soloMissions').innerHTML = MISSIONS.map((m, i) => '<button class="btn" data-ms="' + i + '">' + esc(m) + '</button>').join('');
-    $('#soloMissions').querySelectorAll('[data-ms]').forEach(b => b.addEventListener('click', () => startSolo(+b.dataset.ms)));
+    $('#name').value = S.name; $('#menu').dataset.tab = S.tab;
+    $('#nav').innerHTML = TABS.map(([k, n]) => '<button class="nv' + (S.tab === k ? ' on' : '') + '" data-tab="' + k + '">' + n + '</button>').join('');
+    $('#tab').innerHTML = tabHtml();
+    const go = k => { S.tab = k; renderMenu(); };
+    $('#nav').querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => go(b.dataset.tab)));
+    const T = $('#tab');
+    T.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+    T.querySelectorAll('[data-ms]').forEach(b => b.addEventListener('click', () => startSolo(+b.dataset.ms)));
+    T.querySelectorAll('[data-hard]').forEach(b => b.addEventListener('click', () => { S.hard = !S.hard; store.set('bodycam-hard', S.hard ? '1' : '0'); renderMenu(); }));
+    T.querySelectorAll('[data-slot]').forEach(b => b.addEventListener('click', () => { S.slot = +b.dataset.slot; renderMenu(); }));
+    T.querySelectorAll('[data-w]').forEach(b => b.addEventListener('click', () => {
+      const k = S.slot ? 's' : 'p'; S.lo[k] = +b.dataset.v;
+      S.lo.at = fixAt(S.lo.p, S.lo.at); S.lo.at2 = fixAt(S.lo.s, S.lo.at2); saveLo(); renderMenu();
+    }));
+    T.querySelectorAll('[data-att]').forEach(b => b.addEventListener('click', () => {
+      const key = S.slot ? 'at2' : 'at', d = DEC(S.lo[key]); d[b.dataset.att] = +b.dataset.v;
+      S.lo[key] = fixAt(S.slot ? S.lo.s : S.lo.p, ENC(d)); saveLo(); renderMenu();
+    }));
+    T.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click', () => {
+      const d = lookDec(S.lo.lk); d[+b.dataset.look] = +b.dataset.v; S.lo.lk = lookEnc(d); saveLo(); renderMenu();
+    }));
+    const rl = $('#rndLook'); if (rl) rl.addEventListener('click', () => { S.lo.lk = lookEnc(LOOK.map(g => Math.floor(Math.random() * g.o.length))); saveLo(); renderMenu(); });
+    const cr = $('#create'); if (cr) cr.addEventListener('click', () => joinRoom(Math.random().toString(36).slice(2, 7).toUpperCase()));
+    const jn = $('#join'); if (jn) jn.addEventListener('click', () => joinRoom($('#joinCode').value));
+    const jc = $('#joinCode'); if (jc) jc.addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(jc.value); });
+    srUpdate();
   }
 
   let lobbyKey = '';
@@ -426,6 +518,8 @@
     $('#loadoutLobby').innerHTML = loadoutHtml(); bindLoadout($('#loadoutLobby'));
     $('#modes').innerHTML = MODES.map((m, i) => '<button class="btn' + (i === S.mode ? ' on' : '') + '" data-mode="' + i + '"' + (me ? '' : ' disabled') + '>' + esc(m.n) + '</button>').join('');
     $('#modeDesc').textContent = MODES[S.mode].d;
+    $('#ffRow').innerHTML = '<label class="toggle' + (S.ff ? ' on' : '') + '" id="ffBtn" style="' + (me ? '' : 'pointer-events:none;opacity:.7') + '"><i></i><span><b>フレンドリーファイア</b>　味方の弾・手榴弾でもダメージ(チーム戦では味方撃ち -1キル)</span></label>';
+    $('#ffBtn').addEventListener('click', () => { S.ff = !S.ff; store.set('bodycam-ff', S.ff ? '1' : '0'); lobbyKey = ''; renderLobby(true); });
     $('#missions').innerHTML = MISSIONS.map((m, i) => '<button class="btn' + (i === S.ms ? ' on' : '') + '" data-ms="' + i + '"' + (me ? '' : ' disabled') + '>' + esc(m) + '</button>').join('');
     $('#modes').querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => { S.mode = +b.dataset.mode; lobbyKey = ''; renderLobby(true); }));
     $('#missions').querySelectorAll('[data-ms]').forEach(b => b.addEventListener('click', () => { S.ms = +b.dataset.ms; lobbyKey = ''; renderLobby(true); }));
@@ -444,11 +538,9 @@
 
   // ================= 起動 =================
   $('#name').addEventListener('input', e => { S.name = e.target.value.slice(0, 12) || S.name; store.set('bodycam-name', S.name); });
-  $('#create').addEventListener('click', () => joinRoom(Math.random().toString(36).slice(2, 7).toUpperCase()));
-  $('#join').addEventListener('click', () => joinRoom($('#joinCode').value));
-  $('#joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom($('#joinCode').value); });
   $('#leave').addEventListener('click', leaveRoom);
   $('#start').addEventListener('click', () => { if (isLobbyLeader() && !startProblem(members().length)) leaderStart(); });
   $('#copy').addEventListener('click', () => { const i = $('#invite'); i.select(); try { document.execCommand('copy'); } catch (e) { } $('#lobbyStat').textContent = 'コピーしました'; });
+  addEventListener('resize', () => srUpdate());
   show('menu');
 })();

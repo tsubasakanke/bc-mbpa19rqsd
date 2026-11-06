@@ -9,22 +9,18 @@
 <body>
   <canvas id="unity-canvas" tabindex="-1"></canvas>
 
-  <!-- タイトル -->
-  <div id="menu" class="panel hidden">
-    <h1>BODYCAM BREACH</h1>
-    <p class="tag">ボディカム視点のステルス制圧FPS。協力・チーム戦・個人戦。</p>
-    <label>名前 <input id="name" maxlength="12"></label>
-    <div id="loadoutMenu"></div>
-    <h3>ソロ任務</h3>
-    <div id="soloMissions" class="row"></div>
-    <h3>オンライン</h3>
-    <button id="create" class="btn primary">部屋を作る</button>
-    <div class="row">
-      <input id="joinCode" placeholder="部屋コード" maxlength="8">
-      <button id="join" class="btn">参加する</button>
-    </div>
+  <!-- タイトル(HUD風メニュー) -->
+  <div id="menu" class="hud hidden">
+    <div class="frame"><i></i><i></i><i></i><i></i></div>
+    <header class="brand">
+      <div class="logo">BODYCAM<b>BREACH</b></div>
+      <div class="sub">TACTICAL STEALTH FPS // CO-OP · TEAM DEATHMATCH · FREE FOR ALL</div>
+      <label class="callsign"><span>CALLSIGN</span><input id="name" maxlength="12" autocomplete="off"></label>
+    </header>
+    <nav id="nav"></nav>
+    <section id="tab"></section>
     <p id="menuStat" class="stat"></p>
-    <p class="keys">WASD 移動 / Shift ダッシュ / C しゃがみ / 右クリック/T 構え / R リロード / N ナイトビジョン / G 扉・爆弾・ラペリング / H 起爆 / Tab スコア / F1 ボディカム加工 切替</p>
+    <footer class="keys">WASD 移動 · Shift ダッシュ · C しゃがみ · 右クリック 構え · R リロード · N ナイトビジョン · G 扉/爆弾/ラペリング · H 起爆 · Tab スコア · F1 ボディカム切替</footer>
   </div>
 
   <!-- ロビー -->
@@ -40,6 +36,7 @@
     <h3>モード</h3>
     <div id="modes" class="row"></div>
     <p id="modeDesc" class="desc"></p>
+    <div id="ffRow" class="row"></div>
     <h3>舞台</h3>
     <div id="missions" class="row"></div>
     <button id="start" class="btn primary">スタート</button>
